@@ -1,5 +1,6 @@
-// Use same-origin /api so Vite dev server proxies to backend (no CORS in browser)
-const API = '/api';
+// Dev: Vite proxy uses same-origin /api
+// Prod (Vercel): set VITE_API_URL to your backend base URL (e.g. https://your-backend.com/api)
+const API = import.meta.env.VITE_API_URL || '/api';
 
 function getToken() {
   return localStorage.getItem('token');
