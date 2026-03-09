@@ -1,0 +1,57 @@
+:root {
+  /* Valorant-inspired dark theme */
+  --bg: #0b1220;
+  --surface: #0f1923;
+  --surface-2: #111c28;
+  --border: rgba(255, 255, 255, 0.10);
+  --text: #f4f7fb;
+  --muted: rgba(244, 247, 251, 0.68);
+  --accent: #ff4655;
+  --accent-hover: #ff5f6b;
+  --danger: #ff4655;
+  --success: #22c55e;
+  --warning: #fbbf24;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background:
+    radial-gradient(900px 450px at 18% 12%, rgba(255, 70, 85, 0.18), transparent 55%),
+    radial-gradient(700px 380px at 82% 18%, rgba(56, 189, 248, 0.12), transparent 55%),
+    linear-gradient(135deg, #0b1220 0%, #0f1923 55%, #0b1220 100%);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+::selection {
+  background: rgba(255, 70, 85, 0.35);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+  font: inherit;
+}
+
+input, select {
+  font: inherit;
+}
