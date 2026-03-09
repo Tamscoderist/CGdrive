@@ -144,48 +144,6 @@ app.post('/api/register', (req, res) => {
   }
 });
 
-// Forgot password: generate reset OTP using same OTP fields
-app.post('/api/forgot-password', (req, res) => {
-  const { username } = req.body || {};
-  if (!username || !username.trim()) {
-    return res.status(400).json({ error: 'Username is required' });
-  }
-  const user = db.prepare(`
-    SELECT u.id, u.username
-    FROM users u
-    WHERE u.username = ?
-  `).get(username.trim());
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
-  }
-  const otp = setOTP(user.id);
-  res.json({
-    message: 'Reset code generated. Use it to set a new password.',
-    userId: user.id,
-    resetOtp: otp,
-  });
-});
-
-// Reset password using userId + OTP
-app.post('/api/reset-password', (req, res) => {
-  const { userId, otp, newPassword } = req.body || {};
-  if (!userId || !otp || !newPassword) {
-    return res.status(400).json({ error: 'User, reset code, and new password are required' });
-  }
-  if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(newPassword)) {
-    return res.status(400).json({
-      error: 'Password must be at least 8 characters and include uppercase, lowercase, number, and symbol',
-    });
-  }
-  const ok = verifyOTP(userId, String(otp).trim());
-  if (!ok) {
-    return res.status(401).json({ error: 'Invalid or expired reset code' });
-  }
-  const hash = bcrypt.hashSync(newPassword, 10);
-  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, userId);
-  res.json({ message: 'Password has been updated. You can sign in with the new password.' });
-});
-
 // Login (password-based) -> returns userId and triggers OTP
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
