@@ -37,6 +37,28 @@ export async function login(username, password) {
   return data;
 }
 
+export async function requestPasswordReset(username) {
+  const res = await fetch(`${API}/forgot-password`, {
+    method: 'POST',
+    headers: headers(false),
+    body: JSON.stringify({ username }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to start password reset');
+  return data;
+}
+
+export async function resetPassword(userId, otp, newPassword) {
+  const res = await fetch(`${API}/reset-password`, {
+    method: 'POST',
+    headers: headers(false),
+    body: JSON.stringify({ userId, otp, newPassword }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to reset password');
+  return data;
+}
+
 export async function verifyOTP(userId, otp) {
   const res = await fetch(`${API}/verify-otp`, {
     method: 'POST',

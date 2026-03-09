@@ -86,6 +86,15 @@ export default function Login() {
           <button type="submit" className="btn btn-primary">Sign in</button>
         </form>
         <p className="auth-footer">
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => navigate('/forgot-password')}
+          >
+            Forgot your password?
+          </button>
+        </p>
+        <p className="auth-footer">
           Don't have an account? <Link to="/register">Register</Link>
         </p>
       </div>

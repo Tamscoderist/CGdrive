@@ -14,6 +14,11 @@ export default function Register() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  const isStrongPassword = (value) => {
+    // At least 8 chars, 1 upper, 1 lower, 1 number, 1 symbol
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(value)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -22,8 +27,8 @@ export default function Register() {
       setError('Username, email, and both password fields are required.')
       return
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.')
+    if (!isStrongPassword(password)) {
+      setError('Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.')
       return
     }
     if (password !== confirmPassword) {
