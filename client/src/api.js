@@ -1,12 +1,5 @@
-// Dev: use same-origin /api so Vite proxies to backend (no CORS).
-// Prod (Vercel): set VITE_API_URL (e.g. https://your-backend.example.com) so API doesn't 404.
-const API_BASE = import.meta.env.DEV
-  ? ''
-  : (import.meta.env.VITE_API_URL || '');
-
-const API = API_BASE
-  ? `${API_BASE.replace(/\/$/, '')}/api`
-  : '/api';
+// Use same-origin /api so Vite dev server proxies to backend (no CORS in browser)
+const API = '/api';
 
 function getToken() {
   return localStorage.getItem('token');
