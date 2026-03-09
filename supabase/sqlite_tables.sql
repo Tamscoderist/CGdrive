@@ -44,24 +44,37 @@ create table if not exists public.files (
 
 create index if not exists files_owner_id_idx on public.files(owner_id);
 
--- ---------- seed admin (same as local app) ----------
+-- ---------- seed default users (same as local app) ----------
 -- Creates:
---   username: admin123
---   password: admin123  (bcrypt via pgcrypto crypt)
---   role: admin
+--   admin123 / admin123  with role admin
+--   staff123 / staff123  with role staff
 do $$
 declare
-  v_user_id bigint;
+  v_admin_id bigint;
+  v_staff_id bigint;
 begin
-  select id into v_user_id from public.users where username = 'admin123';
-  if v_user_id is null then
+  -- admin123
+  select id into v_admin_id from public.users where username = 'admin123';
+  if v_admin_id is null then
     insert into public.users (username, email, password)
     values ('admin123', 'admin123@example.com', crypt('admin123', gen_salt('bf')))
-    returning id into v_user_id;
+    returning id into v_admin_id;
   end if;
 
   insert into public.user_roles (user_id, role)
-  values (v_user_id, 'admin')
+  values (v_admin_id, 'admin')
+  on conflict (user_id) do update set role = excluded.role;
+
+  -- staff123
+  select id into v_staff_id from public.users where username = 'staff123';
+  if v_staff_id is null then
+    insert into public.users (username, email, password)
+    values ('staff123', 'staff123@example.com', crypt('staff123', gen_salt('bf')))
+    returning id into v_staff_id;
+  end if;
+
+  insert into public.user_roles (user_id, role)
+  values (v_staff_id, 'staff')
   on conflict (user_id) do update set role = excluded.role;
 end $$;
 

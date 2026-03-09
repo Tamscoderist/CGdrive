@@ -161,13 +161,24 @@ for (const stmt of [
   try { db.exec(stmt); } catch { /* ignore */ }
 }
 
-// Seed admin (admin123/admin123) if no admin exists
+// Seed default accounts if admin does not yet exist
 const adminExists = db.prepare("SELECT id FROM users WHERE username = 'admin123'").get();
 if (!adminExists) {
-  const hash = bcrypt.hashSync('admin123', 10);
-  const res = db.prepare('INSERT INTO users (username, email, password) VALUES (?, ?, ?)').run('admin123', 'admin123@example.com', hash);
-  db.prepare('INSERT OR REPLACE INTO user_roles (user_id, role) VALUES (?, ?)').run(res.lastInsertRowid, 'admin');
-  console.log('Seeded admin: admin123 / admin123');
+  const adminHash = bcrypt.hashSync('admin123', 10);
+  const adminRes = db
+    .prepare('INSERT INTO users (username, email, password) VALUES (?, ?, ?)')
+    .run('admin123', 'admin123@example.com', adminHash);
+  db.prepare('INSERT OR REPLACE INTO user_roles (user_id, role) VALUES (?, ?)')
+    .run(adminRes.lastInsertRowid, 'admin');
+
+  const staffHash = bcrypt.hashSync('staff123', 10);
+  const staffRes = db
+    .prepare('INSERT INTO users (username, email, password) VALUES (?, ?, ?)')
+    .run('staff123', 'staff123@example.com', staffHash);
+  db.prepare('INSERT OR REPLACE INTO user_roles (user_id, role) VALUES (?, ?)')
+    .run(staffRes.lastInsertRowid, 'staff');
+
+  console.log('Seeded admin: admin123/admin123 and staff: staff123/staff123');
 }
 
 export default db;
