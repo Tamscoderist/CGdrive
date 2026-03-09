@@ -156,11 +156,17 @@ export default function Files() {
       </p>
 
       <form className="upload-form" onSubmit={handleUpload}>
-        <input
-          type="file"
-          accept="image/*,application/pdf"
-          onChange={(e) => setSelectedUpload(e.target.files?.[0] || null)}
-        />
+        <label className="upload-picker">
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={(e) => setSelectedUpload(e.target.files?.[0] || null)}
+          />
+          <span className="btn btn-secondary">
+            <span className="upload-icon">↑</span>
+            <span>Select file</span>
+          </span>
+        </label>
         <button type="submit" className="btn btn-primary" disabled={uploading}>
           {uploading ? 'Uploading…' : 'Upload file'}
         </button>
