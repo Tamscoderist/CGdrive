@@ -1,6 +1,6 @@
 .files-page h1 {
-  font-size: 1.5rem;
-  margin-bottom: 0.25rem;
+  font-size: 1.4rem;
+  margin-bottom: 0.2rem;
 }
 
 .files-desc {
@@ -19,9 +19,9 @@
   flex: 1;
   max-width: 420px;
   padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: rgba(15, 23, 42, 0.9);
   color: var(--text);
 }
 
@@ -33,20 +33,20 @@
   width: 100%;
   border-collapse: collapse;
   background: var(--surface);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
 }
 
 .files-table th,
 .files-table td {
   padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.9);
 }
 
 .files-table th {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(15, 23, 42, 0.9);
   color: var(--muted);
   font-weight: 600;
   font-size: 0.85rem;
@@ -54,6 +54,10 @@
 
 .files-table tr:last-child td {
   border-bottom: none;
+}
+
+.files-table tbody tr:hover {
+  background: rgba(15, 23, 42, 0.92);
 }
 
 .access-denied {
