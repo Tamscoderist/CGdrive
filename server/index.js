@@ -7,7 +7,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { supabase } from './supabaseClient.js';
+import db from './db.js';
 
 const app = express();
 const PORT = 3001;
@@ -72,25 +72,17 @@ function generateOTP() {
   return crypto.randomInt(100000, 999999).toString();
 }
 
-async function setOTP(userId) {
+function setOTP(userId) {
   const otp = generateOTP();
   const expires = Date.now() + 5 * 60 * 1000;
-  const { error } = await supabase
-    .from('users')
-    .update({ otp, otp_expires: expires })
-    .eq('id', userId);
-  if (error) throw error;
+  db.prepare('UPDATE users SET otp = ?, otp_expires = ? WHERE id = ?').run(otp, expires, userId);
   return otp;
 }
 
-async function verifyOTP(userId, code) {
-  const { data, error } = await supabase
-    .from('users')
-    .select('otp, otp_expires')
-    .eq('id', userId)
-    .single();
-  if (error || !data || data.otp !== code || data.otp_expires < Date.now()) return false;
-  await supabase.from('users').update({ otp: null, otp_expires: null }).eq('id', userId);
+function verifyOTP(userId, code) {
+  const row = db.prepare('SELECT otp, otp_expires FROM users WHERE id = ?').get(userId);
+  if (!row || row.otp !== code || row.otp_expires < Date.now()) return false;
+  db.prepare('UPDATE users SET otp = NULL, otp_expires = NULL WHERE id = ?').run(userId);
   return true;
 }
 
@@ -106,40 +98,10 @@ function authMiddleware(req, res, next) {
   }
 }
 
-async function getUserWithRoleById(id) {
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('id, username')
-    .eq('id', id)
-    .single();
-  if (error || !user) return null;
-  const { data: roleRow } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', id)
-    .single();
-  return { ...user, role: roleRow?.role || 'user' };
-}
-
-async function getUserWithRoleByUsername(username) {
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('id, username, password')
-    .eq('username', username)
-    .single();
-  if (error || !user) return null;
-  const { data: roleRow } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', user.id)
-    .single();
-  return { ...user, role: roleRow?.role || 'user' };
-}
-
 // ----- Auth routes -----
 
 // Register (no role - admin assigns later; default role: user)
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', (req, res) => {
   const body = req.body || {};
   const username = typeof body.username === 'string' ? body.username.trim() : '';
   const email = typeof body.email === 'string' ? body.email.trim() : '';
@@ -163,52 +125,49 @@ app.post('/api/register', async (req, res) => {
   }
   const hash = bcrypt.hashSync(password, 10);
   try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .insert({ username, email, password: hash })
-      .select('id')
-      .single();
-    if (error) {
-      if (error.code === '23505') {
-        return res.status(400).json({ error: 'Username or email already exists' });
-      }
-      throw error;
-    }
-    await supabase
-      .from('user_roles')
-      .upsert({ user_id: user.id, role: 'user' }, { onConflict: 'user_id' });
+    const ins = db.prepare('INSERT INTO users (username, email, password) VALUES (?, ?, ?)').run(
+      username,
+      email,
+      hash
+    );
+    db.prepare('INSERT OR REPLACE INTO user_roles (user_id, role) VALUES (?, ?)').run(ins.lastInsertRowid, 'user');
     res.status(201).json({ message: 'Registered successfully' });
   } catch (e) {
-    console.error('Register error', e);
-    res.status(500).json({ error: 'Internal server error' });
+    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      const existingUser = db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
+      if (existingUser) return res.status(400).json({ error: 'Username already exists' });
+      const existingEmail = db.prepare('SELECT 1 FROM users WHERE email = ?').get(email);
+      if (existingEmail) return res.status(400).json({ error: 'Email already exists' });
+      return res.status(400).json({ error: 'User already exists' });
+    }
+    throw e;
   }
 });
 
 // Forgot password: generate reset OTP using same OTP fields
-app.post('/api/forgot-password', async (req, res) => {
+app.post('/api/forgot-password', (req, res) => {
   const { username } = req.body || {};
   if (!username || !username.trim()) {
     return res.status(400).json({ error: 'Username is required' });
   }
-  try {
-    const user = await getUserWithRoleByUsername(username.trim());
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    const otp = await setOTP(user.id);
-    res.json({
-      message: 'Reset code generated. Use it to set a new password.',
-      userId: user.id,
-      resetOtp: otp,
-    });
-  } catch (e) {
-    console.error('Forgot password error', e);
-    res.status(500).json({ error: 'Internal server error' });
+  const user = db.prepare(`
+    SELECT u.id, u.username
+    FROM users u
+    WHERE u.username = ?
+  `).get(username.trim());
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
   }
+  const otp = setOTP(user.id);
+  res.json({
+    message: 'Reset code generated. Use it to set a new password.',
+    userId: user.id,
+    resetOtp: otp,
+  });
 });
 
-// Reset password using username + OTP
-app.post('/api/reset-password', async (req, res) => {
+// Reset password using userId + OTP
+app.post('/api/reset-password', (req, res) => {
   const { userId, otp, newPassword } = req.body || {};
   if (!userId || !otp || !newPassword) {
     return res.status(400).json({ error: 'User, reset code, and new password are required' });
@@ -218,71 +177,61 @@ app.post('/api/reset-password', async (req, res) => {
       error: 'Password must be at least 8 characters and include uppercase, lowercase, number, and symbol',
     });
   }
-  try {
-    const ok = await verifyOTP(userId, String(otp).trim());
-    if (!ok) {
-      return res.status(401).json({ error: 'Invalid or expired reset code' });
-    }
-    const hash = bcrypt.hashSync(newPassword, 10);
-    const { error } = await supabase
-      .from('users')
-      .update({ password: hash })
-      .eq('id', userId);
-    if (error) throw error;
-    res.json({ message: 'Password has been updated. You can sign in with the new password.' });
-  } catch (e) {
-    console.error('Reset password error', e);
-    res.status(500).json({ error: 'Internal server error' });
+  const ok = verifyOTP(userId, String(otp).trim());
+  if (!ok) {
+    return res.status(401).json({ error: 'Invalid or expired reset code' });
   }
+  const hash = bcrypt.hashSync(newPassword, 10);
+  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, userId);
+  res.json({ message: 'Password has been updated. You can sign in with the new password.' });
 });
 
 // Login (password-based) -> returns userId and triggers OTP
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required' });
   }
-  try {
-    const user = await getUserWithRoleByUsername(username.trim());
-    if (!user || !bcrypt.compareSync(password, user.password)) {
-      return res.status(401).json({ error: 'Invalid username or password' });
-    }
-    const otp = await setOTP(user.id);
-    res.json({
-      message: 'Password valid. Enter OTP to continue.',
-      userId: user.id,
-      username: user.username,
-      role: user.role,
-      otpSimulated: otp, // For dev: show OTP in response (simulated MFA)
-    });
-  } catch (e) {
-    console.error('Login error', e);
-    res.status(500).json({ error: 'Internal server error' });
+  const user = db.prepare(`
+    SELECT u.id, u.username, u.password, r.role
+    FROM users u
+    JOIN user_roles r ON r.user_id = u.id
+    WHERE u.username = ?
+  `).get(username.trim());
+  if (!user || !bcrypt.compareSync(password, user.password)) {
+    return res.status(401).json({ error: 'Invalid username or password' });
   }
+  const otp = setOTP(user.id);
+  res.json({
+    message: 'Password valid. Enter OTP to continue.',
+    userId: user.id,
+    username: user.username,
+    role: user.role,
+    otpSimulated: otp,
+  });
 });
 
 // OTP verification -> returns JWT
-app.post('/api/verify-otp', async (req, res) => {
+app.post('/api/verify-otp', (req, res) => {
   const { userId, otp } = req.body;
   if (!userId || !otp) {
     return res.status(400).json({ error: 'UserId and OTP are required' });
   }
-  try {
-    const ok = await verifyOTP(userId, String(otp).trim());
-    if (!ok) {
-      return res.status(401).json({ error: 'Invalid or expired OTP' });
-    }
-    const user = await getUserWithRoleById(userId);
-    const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-    res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
-  } catch (e) {
-    console.error('Verify OTP error', e);
-    res.status(500).json({ error: 'Internal server error' });
+  if (!verifyOTP(userId, String(otp).trim())) {
+    return res.status(401).json({ error: 'Invalid or expired OTP' });
   }
+  const user = db.prepare(`
+    SELECT u.id, u.username, r.role
+    FROM users u
+    JOIN user_roles r ON r.user_id = u.id
+    WHERE u.id = ?
+  `).get(userId);
+  const token = jwt.sign(
+    { id: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+  res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
 });
 
 // Get current user (protected)
@@ -297,94 +246,57 @@ function adminOnly(req, res, next) {
 }
 
 // ----- Admin: User management (assign roles) -----
-app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, username, email, user_roles(role)')
-      .order('id', { ascending: true });
-    if (error) throw error;
-    const rows = (data || []).map((u) => ({
-      id: u.id,
-      username: u.username,
-      email: u.email,
-      role: u.user_roles?.[0]?.role || 'user',
-    }));
-    res.json(rows);
-  } catch (e) {
-    console.error('Get users error', e);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+app.get('/api/users', authMiddleware, adminOnly, (req, res) => {
+  const rows = db.prepare(`
+    SELECT u.id, u.username, u.email, r.role
+    FROM users u
+    JOIN user_roles r ON r.user_id = u.id
+    ORDER BY u.id
+  `).all();
+  res.json(rows);
 });
 
-app.put('/api/users/:id/role', authMiddleware, adminOnly, async (req, res) => {
+app.put('/api/users/:id/role', authMiddleware, adminOnly, (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
   if (!role || !['staff', 'user'].includes(role.toLowerCase())) {
     return res.status(400).json({ error: 'Role must be staff or user' });
   }
-  try {
-    const { data: userRole, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', id)
-      .single();
-    if (error && error.code !== 'PGRST116') throw error;
-
-    if (!userRole) {
-      const { data: user, error: userErr } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', id)
-        .single();
-      if (userErr || !user) return res.status(404).json({ error: 'User not found' });
-    } else if (userRole.role === 'admin') {
-      return res.status(403).json({ error: 'Cannot change admin role' });
-    }
-
-    const { error: upsertErr } = await supabase
-      .from('user_roles')
-      .upsert({ user_id: Number(id), role: role.toLowerCase() }, { onConflict: 'user_id' });
-    if (upsertErr) throw upsertErr;
-    res.json({ message: 'Role updated' });
-  } catch (e) {
-    console.error('Update role error', e);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+  const target = db.prepare(`
+    SELECT u.id, r.role
+    FROM users u
+    JOIN user_roles r ON r.user_id = u.id
+    WHERE u.id = ?
+  `).get(id);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (target.role === 'admin') return res.status(403).json({ error: 'Cannot change admin role' });
+  db.prepare('UPDATE user_roles SET role = ? WHERE user_id = ?').run(role.toLowerCase(), id);
+  res.json({ message: 'Role updated' });
 });
 
 // ----- Files (DAC) -----
 
 // List files (all for admin/staff for listing; actual content access is DAC)
-app.get('/api/files', authMiddleware, async (req, res) => {
+app.get('/api/files', authMiddleware, (req, res) => {
   const { role, id } = req.user;
-  try {
-    const query = supabase
-      .from('files')
-      .select('id, filename, original_name, mime_type, size, created_at, owner_id, owner:users(username)')
-      .order('id', { ascending: false });
-
-    if (!(role === 'admin' || role === 'staff')) {
-      query.eq('owner_id', id);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    const rows = (data || []).map((f) => ({
-      id: f.id,
-      filename: f.filename,
-      original_name: f.original_name,
-      mime_type: f.mime_type,
-      size: f.size,
-      created_at: f.created_at,
-      owner_id: f.owner_id,
-      owner_name: f.owner?.username || null,
-    }));
-    res.json(rows);
-  } catch (e) {
-    console.error('Get files error', e);
-    res.status(500).json({ error: 'Internal server error' });
+  let rows;
+  if (role === 'admin' || role === 'staff') {
+    rows = db.prepare(`
+      SELECT f.id, f.filename, f.original_name, f.mime_type, f.size, f.created_at, f.owner_id, u.username as owner_name
+      FROM files f
+      JOIN users u ON u.id = f.owner_id
+      ORDER BY f.id DESC
+    `).all();
+  } else {
+    rows = db.prepare(`
+      SELECT f.id, f.filename, f.original_name, f.mime_type, f.size, f.created_at, f.owner_id, u.username as owner_name
+      FROM files f
+      JOIN users u ON u.id = f.owner_id
+      WHERE f.owner_id = ?
+      ORDER BY f.id DESC
+    `).all(id);
   }
+  res.json(rows);
 });
 
 // Upload file (real upload) - owner = current user
@@ -395,134 +307,105 @@ app.post('/api/files/upload', authMiddleware, (req, res) => {
     }
     if (!req.file) return res.status(400).json({ error: 'File is required' });
 
-    (async () => {
-      try {
-        const relPath = path.relative(UPLOADS_ROOT, req.file.path).replaceAll('\\', '/');
-        const now = Date.now();
-        const { data, error } = await supabase
-          .from('files')
-          .insert({
-            filename: req.file.filename,
-            original_name: req.file.originalname,
-            stored_path: relPath,
-            mime_type: req.file.mimetype,
-            size: req.file.size,
-            created_at: now,
-            owner_id: req.user.id,
-          })
-          .select('id')
-          .single();
-        if (error) throw error;
-        res.status(201).json({
-          message: 'Uploaded',
-          file: {
-            id: data.id,
-            filename: req.file.filename,
-            original_name: req.file.originalname,
-            mime_type: req.file.mimetype,
-            size: req.file.size,
-            created_at: now,
-            owner_id: req.user.id,
-          },
-        });
-      } catch (e2) {
-        console.error('Upload file error', e2);
-        res.status(500).json({ error: 'Failed to save file metadata' });
-      }
-    })();
+    const relPath = path.relative(UPLOADS_ROOT, req.file.path).replaceAll('\\', '/');
+    const now = Date.now();
+    const ins = db.prepare(`
+      INSERT INTO files (filename, original_name, stored_path, mime_type, size, created_at, owner_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      req.file.filename,
+      req.file.originalname,
+      relPath,
+      req.file.mimetype,
+      req.file.size,
+      now,
+      req.user.id
+    );
+    res.status(201).json({
+      message: 'Uploaded',
+      file: {
+        id: ins.lastInsertRowid,
+        filename: req.file.filename,
+        original_name: req.file.originalname,
+        mime_type: req.file.mimetype,
+        size: req.file.size,
+        created_at: now,
+        owner_id: req.user.id,
+      },
+    });
   });
 });
 
 // Get file metadata (DAC: only owner can access; admin can access)
-app.get('/api/files/:id', authMiddleware, async (req, res) => {
-  try {
-    const { data: file, error } = await supabase
-      .from('files')
-      .select('*')
-      .eq('id', req.params.id)
-      .single();
-    if (error && error.code !== 'PGRST116') throw error;
-    if (!file) return res.status(404).json({ error: 'File not found' });
-    if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
-    }
-    res.json(file);
-  } catch (e) {
-    console.error('Get file metadata error', e);
-    res.status(500).json({ error: 'Internal server error' });
+app.get('/api/files/:id', authMiddleware, (req, res) => {
+  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+  if (!file) return res.status(404).json({ error: 'File not found' });
+  if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
   }
+  res.json(file);
 });
 
 // Download/view file binary (DAC)
-app.get('/api/files/:id/download', authMiddleware, async (req, res) => {
-  try {
-    const { data: file, error } = await supabase
-      .from('files')
-      .select('*')
-      .eq('id', req.params.id)
-      .single();
-    if (error && error.code !== 'PGRST116') throw error;
-    if (!file) return res.status(404).json({ error: 'File not found' });
-    if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
-    }
-    if (!file.stored_path) return res.status(404).json({ error: 'No uploaded content for this record' });
-
-    const resolved = resolveUploadPath(file.stored_path);
-    if (!resolved) {
-      return res.status(400).json({ error: 'Invalid file path' });
-    }
-    if (!fs.existsSync(resolved)) {
-      return res.status(404).json({ error: 'File missing on disk' });
-    }
-
-    const mime = file.mime_type || 'application/octet-stream';
-    res.setHeader('Content-Type', mime);
-    const displayName = safeBaseName(file.original_name || file.filename || 'file');
-    const disposition = mime === 'application/pdf' || mime.startsWith('image/')
-      ? 'inline'
-      : 'attachment';
-    res.setHeader('Content-Disposition', `${disposition}; filename="${displayName}"`);
-    fs.createReadStream(resolved).pipe(res);
-  } catch (e) {
-    console.error('Download file error', e);
-    res.status(500).json({ error: 'Internal server error' });
+app.get('/api/files/:id/download', authMiddleware, (req, res) => {
+  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+  if (!file) return res.status(404).json({ error: 'File not found' });
+  if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
   }
+  if (!file.stored_path) return res.status(404).json({ error: 'No uploaded content for this record' });
+
+  const resolved = resolveUploadPath(file.stored_path);
+  if (!resolved) {
+    return res.status(400).json({ error: 'Invalid file path' });
+  }
+  if (!fs.existsSync(resolved)) {
+    return res.status(404).json({ error: 'File missing on disk' });
+  }
+
+  const mime = file.mime_type || 'application/octet-stream';
+  res.setHeader('Content-Type', mime);
+  const displayName = safeBaseName(file.original_name || file.filename || 'file');
+  const disposition = mime === 'application/pdf' || mime.startsWith('image/')
+    ? 'inline'
+    : 'attachment';
+  res.setHeader('Content-Disposition', `${disposition}; filename="${displayName}"`);
+  fs.createReadStream(resolved).pipe(res);
 });
 
 // Delete file (DAC: owner/admin only). Deletes DB row and disk content if present.
-app.delete('/api/files/:id', authMiddleware, async (req, res) => {
-  try {
-    const { data: file, error } = await supabase
-      .from('files')
-      .select('*')
-      .eq('id', req.params.id)
-      .single();
-    if (error && error.code !== 'PGRST116') throw error;
-    if (!file) return res.status(404).json({ error: 'File not found' });
-    if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
-    }
+app.delete('/api/files/:id', authMiddleware, (req, res) => {
+  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+  if (!file) return res.status(404).json({ error: 'File not found' });
+  if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
+  }
 
-    if (file.stored_path) {
-      const resolved = resolveUploadPath(file.stored_path);
-      if (resolved) {
-        try {
-          if (fs.existsSync(resolved)) fs.unlinkSync(resolved);
-        } catch {
-          // ignore disk delete failures; still delete DB record
-        }
+  if (file.stored_path) {
+    const resolved = resolveUploadPath(file.stored_path);
+    if (resolved) {
+      try {
+        if (fs.existsSync(resolved)) fs.unlinkSync(resolved);
+      } catch {
+        // ignore disk delete failures; still delete DB record
       }
     }
-
-    const { error: delErr } = await supabase.from('files').delete().eq('id', req.params.id);
-    if (delErr) throw delErr;
-    res.json({ message: 'Deleted' });
-  } catch (e) {
-    console.error('Delete file error', e);
-    res.status(500).json({ error: 'Internal server error' });
   }
+
+  db.prepare('DELETE FROM files WHERE id = ?').run(req.params.id);
+  res.json({ message: 'Deleted' });
 });
+
+// Seed sample files for demo (if empty)
+const fileCount = db.prepare('SELECT COUNT(*) as c FROM files').get();
+if (fileCount.c === 0) {
+  const admin = db.prepare("SELECT id FROM users WHERE username = 'admin123'").get();
+  if (admin) {
+    db.prepare('INSERT INTO files (filename, created_at, owner_id) VALUES (?, ?, ?)').run('admin-document.txt', Date.now(), admin.id);
+    db.prepare('INSERT INTO files (filename, created_at, owner_id) VALUES (?, ?, ?)').run('secret-report.pdf', Date.now(), admin.id);
+  }
+  console.log('Seeded sample files');
+}
 
 // 404 for unknown API routes
 app.use('/api', (req, res) => {
