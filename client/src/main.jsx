@@ -18,7 +18,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           theme="dark"
           options={{
             duration: 3000,
-            fill: '#141c2e',
+            fill: '#1e293b',
             roundness: 10,
           }}
         />

@@ -69,7 +69,7 @@ select {
   font: inherit;
 }
 
-/* Sileo toast: short duration, non-interactive, theme-matched */
+/* Sileo toast: short duration, non-interactive, readable on dark theme */
 [data-sileo-viewport] [data-sileo-toast] {
   pointer-events: none;
   cursor: default;
@@ -77,5 +77,11 @@ select {
 [data-sileo-viewport][data-theme="dark"] [data-sileo-toast] {
   --sileo-state-success: #22c55e;
   --sileo-state-error: #ef4444;
-  --sileo-state-loading: rgba(148, 163, 184, 0.6);
+  --sileo-state-loading: rgba(148, 163, 184, 0.8);
+}
+[data-sileo-viewport][data-theme="dark"] [data-sileo-title] {
+  color: #f9fafb !important;
+}
+[data-sileo-viewport][data-theme="dark"] [data-sileo-description] {
+  color: rgba(148, 163, 184, 0.95) !important;
 }

@@ -1,6 +1,16 @@
+.files-page {
+  padding: 0 0.5rem;
+}
+
 .files-page h1 {
   font-size: 1.4rem;
   margin-bottom: 0.2rem;
+}
+
+@media (max-width: 640px) {
+  .files-page h1 {
+    font-size: 1.2rem;
+  }
 }
 
 .files-desc {
@@ -66,10 +76,13 @@
 
 .files-list {
   margin-top: 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .files-table {
   width: 100%;
+  min-width: 520px;
   border-collapse: collapse;
   background: var(--surface);
   border-radius: var(--radius-lg);
@@ -97,6 +110,57 @@
 
 .files-table tbody tr:hover {
   background: rgba(26, 36, 56, 0.6);
+}
+
+/* Truncate long text */
+.file-cell-name,
+.file-cell-type,
+.file-cell-owner {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-cell-name {
+  max-width: 220px;
+}
+
+.file-cell-type {
+  max-width: 120px;
+}
+
+/* Action buttons - flex, wrap on narrow */
+.file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .files-table th,
+  .files-table td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .file-cell-name {
+    max-width: 140px;
+  }
+
+  .file-cell-type {
+    max-width: 90px;
+  }
+
+  .file-cell-owner {
+    max-width: 80px;
+  }
+
+  .file-actions .btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
 }
 
 .access-denied {
