@@ -1,4 +1,4 @@
--- IAS102 Database Schema (SQLite)
+-- CGdrive SQLite schema
 
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

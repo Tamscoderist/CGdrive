@@ -72,7 +72,7 @@ const upload = multer({
   },
 });
 
-// Simulated OTP: generate 6-digit code, store in DB, expire in 5 min
+// OTP codes expire after 5 minutes
 function generateOTP() {
   return crypto.randomInt(100000, 999999).toString();
 }
@@ -91,7 +91,7 @@ async function verifyOTP(userId, code) {
   return true;
 }
 
-// Auth middleware (requires valid JWT after OTP)
+// Check JWT (user must have verified OTP first)
 function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
@@ -103,9 +103,9 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// ----- Auth routes -----
+// Auth
 
-// Register (no role - admin assigns later; default role: user)
+// Register - new users get role 'user' by default
 app.post('/api/register', async (req, res) => {
   const body = req.body || {};
   const username = typeof body.username === 'string' ? body.username.trim() : '';
@@ -157,7 +157,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Login (password-based) -> returns userId and triggers OTP
+// Login - validates password, then sends OTP
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -182,7 +182,7 @@ app.post('/api/login', async (req, res) => {
   });
 });
 
-// OTP verification -> returns JWT
+// Verify OTP and issue JWT
 app.post('/api/verify-otp', async (req, res) => {
   const { userId, otp } = req.body;
   if (!userId || !otp) {
@@ -205,7 +205,7 @@ app.post('/api/verify-otp', async (req, res) => {
   res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
 });
 
-// Get current user (protected)
+// Current user
 app.get('/api/me', authMiddleware, (req, res) => {
   res.json(req.user);
 });
@@ -216,7 +216,7 @@ function adminOnly(req, res, next) {
   next();
 }
 
-// ----- Admin: User management (assign roles) -----
+// Admin - user management
 app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
   const rows = await db.prepare(`
     SELECT u.id, u.username, u.email, r.role
@@ -245,9 +245,9 @@ app.put('/api/users/:id/role', authMiddleware, adminOnly, async (req, res) => {
   res.json({ message: 'Role updated' });
 });
 
-// ----- Files (DAC) -----
+// Files
 
-// List files. Users: own only. Staff/admin: default own only; scope=others|all for metadata.
+// List - users see only their files; staff/admin can pass scope=others or scope=all for metadata
 app.get('/api/files', authMiddleware, async (req, res) => {
   const { role, id } = req.user;
   const scope = (req.query.scope === 'others' || req.query.scope === 'all') ? req.query.scope : 'mine';
@@ -273,7 +273,7 @@ app.get('/api/files', authMiddleware, async (req, res) => {
   res.json(rows);
 });
 
-// Upload file (real upload) - owner = current user
+// Upload file
 app.post('/api/files/upload', authMiddleware, (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err) {
@@ -310,7 +310,7 @@ app.post('/api/files/upload', authMiddleware, (req, res) => {
   });
 });
 
-// Get file metadata (DAC: only owner can access)
+// Get file metadata (owner only)
 app.get('/api/files/:id', authMiddleware, async (req, res) => {
   const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ error: 'File not found' });
@@ -320,7 +320,7 @@ app.get('/api/files/:id', authMiddleware, async (req, res) => {
   res.json(file);
 });
 
-// Download/view file binary (DAC: only owner)
+// Download/view file binary
 app.get('/api/files/:id/download', authMiddleware, async (req, res) => {
   const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ error: 'File not found' });
@@ -347,7 +347,7 @@ app.get('/api/files/:id/download', authMiddleware, async (req, res) => {
   fs.createReadStream(resolved).pipe(res);
 });
 
-// Delete file (DAC: owner only). Deletes DB row and disk content if present.
+// Delete file (owner only)
 app.delete('/api/files/:id', authMiddleware, async (req, res) => {
   const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ error: 'File not found' });
