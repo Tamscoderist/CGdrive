@@ -1,8 +1,8 @@
 :root {
-  /* Valorant-inspired but minimalist dark theme */
-  --bg: #040816;
-  --surface: #080f1c;
-  --surface-2: #0b1220;
+  /* Dark theme - less dim */
+  --bg: #0f1729;
+  --surface: #141c2e;
+  --surface-2: #1a2438;
   --border: rgba(148, 163, 184, 0.25);
   --border-subtle: rgba(148, 163, 184, 0.12);
   --text: #f9fafb;
@@ -30,7 +30,7 @@ body {
   background:
     radial-gradient(480px 320px at 12% 10%, rgba(244, 63, 94, 0.14), transparent 55%),
     radial-gradient(520px 360px at 88% 12%, rgba(56, 189, 248, 0.10), transparent 55%),
-    linear-gradient(135deg, #020617 0%, #020617 40%, #020617 100%);
+    linear-gradient(135deg, #0d1424 0%, #0f1729 40%, #141c2e 100%);
   color: var(--text);
   min-height: 100vh;
   line-height: 1.5;

@@ -1,5 +1,4 @@
 -- IAS102 Database Schema (SQLite)
--- Run this to create tables if you need a fresh database or for submission.
 
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -5,7 +5,7 @@
 }
 
 .header {
-  background: rgba(2, 6, 23, 0.94);
+  background: rgba(20, 28, 46, 0.92);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-subtle);
   padding: 0.6rem 1.5rem;
@@ -57,7 +57,7 @@
 
 .nav a:hover {
   color: var(--text);
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(26, 36, 56, 0.8);
   border-color: var(--border-subtle);
 }
 
