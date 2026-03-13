@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { verifyOTP } from '../api'
 import { useAuth } from '../context/AuthContext'
+import logo from '../assets/cgdrive-logo.png'
 import './Auth.css'
 
 export default function VerifyOTP() {
@@ -17,8 +18,7 @@ export default function VerifyOTP() {
   const [error, setError] = useState('')
 
   if (!userId) {
-    navigate('/login')
-    return null
+    return <Navigate to="/login" replace />
   }
 
   const handleSubmit = async (e) => {
@@ -41,6 +41,10 @@ export default function VerifyOTP() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <div className="auth-logo">
+          <img src={logo} alt="CGdrive" />
+          <span>CGdrive</span>
+        </div>
         <h1>Multi-Factor Authentication</h1>
         <p className="subtitle">Enter the One-Time Password sent to you</p>
         {/* OTP is shown via toast on login (simulated MFA). */}

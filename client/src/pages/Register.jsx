@@ -38,12 +38,17 @@ export default function Register() {
     }
     try {
       const data = await register(username.trim(), email.trim(), password)
+      if (!data.userId) {
+        toast.success('Account created. Please sign in.')
+        navigate('/login')
+        return
+      }
       if (data.otpSimulated) {
         toast.success(`Your OTP is: ${data.otpSimulated}`)
       } else {
         toast.success('OTP sent. Check your email or authenticator.')
       }
-      navigate('/verify-otp', { state: { userId: data.userId, otpSimulated: data.otpSimulated } })
+      navigate('/verify-otp', { state: { userId: data.userId, otpSimulated: data.otpSimulated }, replace: true })
     } catch (err) {
       setError(err.message || 'Registration failed')
     }

@@ -245,7 +245,7 @@ app.put('/api/users/:id/role', authMiddleware, adminOnly, async (req, res) => {
 // List files. Users: own only. Staff/admin: default own only; scope=others|all for metadata.
 app.get('/api/files', authMiddleware, async (req, res) => {
   const { role, id } = req.user;
-  const scope = req.query.scope || 'mine'; // mine | others | all (staff/admin only)
+  const scope = (req.query.scope === 'others' || req.query.scope === 'all') ? req.query.scope : 'mine';
   const baseQuery = `
     SELECT f.id, f.filename, f.original_name, f.mime_type, f.size, f.created_at, f.owner_id, u.username as owner_name
     FROM files f
