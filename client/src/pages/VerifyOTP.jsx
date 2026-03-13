@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { verifyOTP } from '../api'
 import { useAuth } from '../context/AuthContext'
-import logo from '../assets/cgdrive-logo.png'
+const logo = '/cgdrive-logo.png'
 import './Auth.css'
 
 export default function VerifyOTP() {

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { register } from '../api'
-import logo from '../assets/cgdrive-logo.png'
 import './Auth.css'
 
 export default function Register() {
@@ -57,10 +56,6 @@ export default function Register() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="auth-logo">
-          <img src={logo} alt="CGdrive" />
-          <span>CGdrive</span>
-        </div>
         <h1>Register</h1>
         <p className="subtitle">Create an account</p>
         {error && <div className="error">{error}</div>}

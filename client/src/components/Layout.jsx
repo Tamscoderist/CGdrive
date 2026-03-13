@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import './Layout.css'
-import logo from '../assets/cgdrive-logo.png'
+const logo = '/cgdrive-logo.png'
 
 export default function Layout() {
   const { user, logout } = useAuth()

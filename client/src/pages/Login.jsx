@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { login } from '../api'
 import { useAuth } from '../context/AuthContext'
-import logo from '../assets/cgdrive-logo.png'
 import './Auth.css'
 
 export default function Login() {
@@ -44,10 +43,6 @@ export default function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="auth-logo">
-          <img src={logo} alt="CGdrive" />
-          <span>CGdrive</span>
-        </div>
         <h1>Sign in</h1>
         <p className="subtitle">Password-based authentication</p>
         {error && <div className="error">{error}</div>}
