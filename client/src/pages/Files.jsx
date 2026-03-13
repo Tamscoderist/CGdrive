@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { sileo } from 'sileo'
 import { getFiles, getFile, uploadFile, fetchFileBlob, deleteFile } from '../api'
 import { useAuth } from '../context/AuthContext'
 import './Files.css'
@@ -65,23 +66,42 @@ export default function Files() {
     }
   }
 
-  const handleFileSelect = async (e) => {
+  const handleFileSelect = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     setError('')
     setAccessDenied(null)
     setSelectedUpload(file)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const confirmUpload = async () => {
+    if (!selectedUpload || uploading) return
     setUploading(true)
+    setError('')
     try {
-      await uploadFile(file)
+      await sileo.promise(uploadFile(selectedUpload), {
+        loading: { title: `Uploading ${selectedUpload.name}…` },
+        success: { title: 'File uploaded successfully' },
+        error: (err) => ({
+          title: 'Upload failed',
+          description: err?.message || 'Upload failed',
+        }),
+      })
       setSelectedUpload(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
       loadFiles()
     } catch (err) {
       setError(err.message || 'Upload failed')
     } finally {
       setUploading(false)
     }
+  }
+
+  const cancelUpload = () => {
+    if (uploading) return
+    setSelectedUpload(null)
+    setError('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const triggerFilePicker = () => {
@@ -177,10 +197,24 @@ export default function Files() {
           <span className="upload-icon">↑</span>
           {uploading ? `Uploading ${selectedUpload?.name || '…'}…` : 'Upload file'}
         </button>
-        {selectedUpload && (
-          <span className="upload-preview">
-            {uploading ? `Uploading: ${selectedUpload.name}` : `Selected: ${selectedUpload.name}`}
-          </span>
+        {selectedUpload && !uploading && (
+          <>
+            <span className="upload-preview">Selected: {selectedUpload.name}</span>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={confirmUpload}
+            >
+              Confirm upload
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={cancelUpload}
+            >
+              Cancel
+            </button>
+          </>
         )}
       </div>
 

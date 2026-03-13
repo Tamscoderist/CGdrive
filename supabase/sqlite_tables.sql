@@ -4,7 +4,7 @@
 -- - user_roles
 -- - files
 --
--- Run in Supabase: SQL Editor → New query → paste → Run
+
 
 -- Enable bcrypt hashing for seeding (optional but useful)
 create extension if not exists pgcrypto;
@@ -78,7 +78,5 @@ begin
   on conflict (user_id) do update set role = excluded.role;
 end $$;
 
--- NOTE:
--- This script only creates tables (and seeds admin).
--- If you want Supabase RLS policies (DAC/RBAC) too, tell me and I'll add a second SQL file.
+
 

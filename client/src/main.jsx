@@ -2,6 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { Toaster as SileoToaster } from 'sileo'
+import 'sileo/styles.css'
 import App from './App'
 import { AuthProvider } from './context/AuthContext'
 import './index.css'
@@ -11,6 +13,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <AuthProvider>
         <App />
+        <SileoToaster position="top-right" theme="dark" />
         <Toaster
           position="top-center"
           toastOptions={{
