@@ -294,21 +294,21 @@ app.post('/api/files/upload', authMiddleware, (req, res) => {
   });
 });
 
-// Get file metadata (DAC: only owner can access; admin can access)
+// Get file metadata (DAC: only owner can access)
 app.get('/api/files/:id', authMiddleware, async (req, res) => {
   const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ error: 'File not found' });
-  if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
+  if (file.owner_id !== req.user.id) {
     return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
   }
   res.json(file);
 });
 
-// Download/view file binary (DAC)
+// Download/view file binary (DAC: only owner)
 app.get('/api/files/:id/download', authMiddleware, async (req, res) => {
   const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ error: 'File not found' });
-  if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
+  if (file.owner_id !== req.user.id) {
     return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
   }
   if (!file.stored_path) return res.status(404).json({ error: 'No uploaded content for this record' });
@@ -331,11 +331,11 @@ app.get('/api/files/:id/download', authMiddleware, async (req, res) => {
   fs.createReadStream(resolved).pipe(res);
 });
 
-// Delete file (DAC: owner/admin only). Deletes DB row and disk content if present.
+// Delete file (DAC: owner only). Deletes DB row and disk content if present.
 app.delete('/api/files/:id', authMiddleware, async (req, res) => {
   const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ error: 'File not found' });
-  if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
+  if (file.owner_id !== req.user.id) {
     return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
   }
 
