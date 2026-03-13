@@ -191,7 +191,7 @@ export default function Files() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,application/pdf"
+          accept="image/*,application/pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={handleFileSelect}
           className="upload-input-hidden"
           disabled={uploading}

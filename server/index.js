@@ -62,8 +62,13 @@ const upload = multer({
   }),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
-    const ok = file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/');
-    cb(ok ? null : new Error('Only images and PDF files are allowed'), ok);
+    const allowed = [
+      'application/pdf',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    ];
+    const ok = file.mimetype.startsWith('image/') || allowed.includes(file.mimetype);
+    cb(ok ? null : new Error('Only images, PDF, and Word documents (.doc, .docx) are allowed'), ok);
   },
 });
 
