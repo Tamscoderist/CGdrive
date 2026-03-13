@@ -25,12 +25,16 @@ export default function Files() {
   const [viewer, setViewer] = useState(null) // { id, name, type, url }
   const [deleteModal, setDeleteModal] = useState(null) // { id, name }
   const [deleting, setDeleting] = useState(false)
+  const isStaffOrAdmin = user?.role === 'admin' || user?.role === 'staff'
+  const [includeOthers, setIncludeOthers] = useState(false)
+  const [showAll, setShowAll] = useState(false)
+  const fileScope = showAll ? 'all' : includeOthers ? 'others' : 'mine'
 
   const loadFiles = async () => {
     setLoading(true)
     setError('')
     try {
-      const data = await getFiles()
+      const data = await getFiles(isStaffOrAdmin ? fileScope : 'mine')
       setFiles(data)
     } catch (e) {
       setError(e.message)
@@ -41,7 +45,7 @@ export default function Files() {
 
   useEffect(() => {
     loadFiles()
-  }, [])
+  }, [fileScope])
 
   useEffect(() => {
     return () => {
@@ -148,8 +152,6 @@ export default function Files() {
     }
   }
 
-  const isAdmin = user?.role === 'admin'
-
   return (
     <div className="files-page">
       <h1>Files (DAC)</h1>
@@ -181,6 +183,33 @@ export default function Files() {
           </span>
         )}
       </div>
+
+      {isStaffOrAdmin && (
+        <div className="file-view-toggles">
+          <label className="toggle-label">
+            <input
+              type="checkbox"
+              checked={includeOthers}
+              onChange={(e) => {
+                setIncludeOthers(e.target.checked)
+                if (e.target.checked) setShowAll(false)
+              }}
+            />
+            Include others&apos; files (metadata only)
+          </label>
+          <label className="toggle-label">
+            <input
+              type="checkbox"
+              checked={showAll}
+              onChange={(e) => {
+                setShowAll(e.target.checked)
+                if (e.target.checked) setIncludeOthers(false)
+              }}
+            />
+            Show all files (metadata only)
+          </label>
+        </div>
+      )}
 
       {error && <div className="error">{error}</div>}
       {accessDenied && (
@@ -250,7 +279,7 @@ export default function Files() {
         <div className="file-detail">
           <h2>File: {selectedFile.filename}</h2>
           <p className="muted">Owner ID: {selectedFile.owner_id}</p>
-          <p>You have access to this file (you are the owner{isAdmin ? ' or admin' : ''}).</p>
+          <p>You have access to this file (you are the owner).</p>
           <button type="button" className="btn btn-secondary" onClick={() => setSelectedFile(null)}>
             Close
           </button>

@@ -74,8 +74,9 @@ export async function updateUserRole(userId, role) {
   return data;
 }
 
-export async function getFiles() {
-  const res = await fetch(`${API}/files`, { headers: headers() });
+export async function getFiles(scope = 'mine') {
+  const url = scope === 'mine' ? `${API}/files` : `${API}/files?scope=${encodeURIComponent(scope)}`;
+  const res = await fetch(url, { headers: headers() });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Failed to load files');
   return data;

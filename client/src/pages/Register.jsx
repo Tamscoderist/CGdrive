@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { register } from '../api'
 import logo from '../assets/cgdrive-logo.png'
 import './Auth.css'
@@ -36,8 +37,13 @@ export default function Register() {
       return
     }
     try {
-      await register(username.trim(), email.trim(), password)
-      navigate('/login')
+      const data = await register(username.trim(), email.trim(), password)
+      if (data.otpSimulated) {
+        toast.success(`Your OTP is: ${data.otpSimulated}`)
+      } else {
+        toast.success('OTP sent. Check your email or authenticator.')
+      }
+      navigate('/verify-otp', { state: { userId: data.userId, otpSimulated: data.otpSimulated } })
     } catch (err) {
       setError(err.message || 'Registration failed')
     }

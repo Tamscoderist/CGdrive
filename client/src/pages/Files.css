@@ -40,6 +40,30 @@
   white-space: nowrap;
 }
 
+.file-view-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.file-view-toggles .toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.file-view-toggles .toggle-label input {
+  cursor: pointer;
+}
+
 .files-list {
   margin-top: 1rem;
 }

@@ -130,8 +130,16 @@ app.post('/api/register', async (req, res) => {
       email,
       hash
     );
-    await db.prepare('INSERT INTO user_roles (user_id, role) VALUES (?, ?) ON CONFLICT (user_id) DO UPDATE SET role = excluded.role').run(ins.lastInsertRowid, 'user');
-    res.status(201).json({ message: 'Registered successfully' });
+    const userId = ins.lastInsertRowid;
+    await db.prepare('INSERT INTO user_roles (user_id, role) VALUES (?, ?) ON CONFLICT (user_id) DO UPDATE SET role = excluded.role').run(userId, 'user');
+    const otp = await setOTP(userId);
+    res.status(201).json({
+      message: 'Account created. Verify OTP to continue.',
+      userId,
+      username,
+      role: 'user',
+      otpSimulated: otp,
+    });
   } catch (e) {
     if (e.code === 'SQLITE_CONSTRAINT_UNIQUE' || e.code === '23505') {
       const existingUser = await db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
@@ -234,25 +242,28 @@ app.put('/api/users/:id/role', authMiddleware, adminOnly, async (req, res) => {
 
 // ----- Files (DAC) -----
 
-// List files (all for admin/staff for listing; actual content access is DAC)
+// List files. Users: own only. Staff/admin: default own only; scope=others|all for metadata.
 app.get('/api/files', authMiddleware, async (req, res) => {
   const { role, id } = req.user;
+  const scope = req.query.scope || 'mine'; // mine | others | all (staff/admin only)
+  const baseQuery = `
+    SELECT f.id, f.filename, f.original_name, f.mime_type, f.size, f.created_at, f.owner_id, u.username as owner_name
+    FROM files f
+    JOIN users u ON u.id = f.owner_id
+  `;
   let rows;
-  if (role === 'admin' || role === 'staff') {
-    rows = await db.prepare(`
-      SELECT f.id, f.filename, f.original_name, f.mime_type, f.size, f.created_at, f.owner_id, u.username as owner_name
-      FROM files f
-      JOIN users u ON u.id = f.owner_id
-      ORDER BY f.id DESC
-    `).all();
+  if (role === 'user') {
+    rows = await db.prepare(baseQuery + ' WHERE f.owner_id = ? ORDER BY f.id DESC').all(id);
+  } else if (role === 'admin' || role === 'staff') {
+    if (scope === 'others') {
+      rows = await db.prepare(baseQuery + ' WHERE f.owner_id != ? ORDER BY f.id DESC').all(id);
+    } else if (scope === 'all') {
+      rows = await db.prepare(baseQuery + ' ORDER BY f.id DESC').all();
+    } else {
+      rows = await db.prepare(baseQuery + ' WHERE f.owner_id = ? ORDER BY f.id DESC').all(id);
+    }
   } else {
-    rows = await db.prepare(`
-      SELECT f.id, f.filename, f.original_name, f.mime_type, f.size, f.created_at, f.owner_id, u.username as owner_name
-      FROM files f
-      JOIN users u ON u.id = f.owner_id
-      WHERE f.owner_id = ?
-      ORDER BY f.id DESC
-    `).all(id);
+    rows = await db.prepare(baseQuery + ' WHERE f.owner_id = ? ORDER BY f.id DESC').all(id);
   }
   res.json(rows);
 });
