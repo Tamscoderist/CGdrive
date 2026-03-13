@@ -72,7 +72,6 @@ export default function AdminDashboard() {
           <li>Full system access</li>
           <li>View all users and files</li>
           <li>Manage resources across the system</li>
-          <li>Access to all files (DAC bypass for admin)</li>
         </ul>
       </div>
     </div>
