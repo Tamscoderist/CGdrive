@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 import db from './db.js';
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'ias102-secret-key-change-in-production';
 
 app.use(cors({ origin: true, credentials: true }));
