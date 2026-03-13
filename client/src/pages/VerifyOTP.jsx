@@ -3,7 +3,6 @@ import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { verifyOTP } from '../api'
 import { useAuth } from '../context/AuthContext'
-const logo = '/cgdrive-logo.png'
 import './Auth.css'
 
 export default function VerifyOTP() {
@@ -41,10 +40,6 @@ export default function VerifyOTP() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="auth-logo">
-          <img src={logo} alt="CGdrive" />
-          <span>CGdrive</span>
-        </div>
         <h1>Multi-Factor Authentication</h1>
         <p className="subtitle">Enter the One-Time Password sent to you</p>
         {/* OTP is shown via toast on login (simulated MFA). */}
