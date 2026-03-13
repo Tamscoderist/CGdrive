@@ -13,7 +13,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <AuthProvider>
         <App />
-        <SileoToaster position="top-right" theme="dark" />
+        <SileoToaster
+          position="top-right"
+          theme="dark"
+          options={{
+            duration: 3000,
+            fill: '#141c2e',
+            roundness: 10,
+          }}
+        />
         <Toaster
           position="top-center"
           toastOptions={{

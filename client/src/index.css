@@ -63,3 +63,14 @@ input,
 select {
   font: inherit;
 }
+
+/* Sileo toast: short duration, non-interactive, theme-matched */
+[data-sileo-viewport] [data-sileo-toast] {
+  pointer-events: none;
+  cursor: default;
+}
+[data-sileo-viewport][data-theme="dark"] [data-sileo-toast] {
+  --sileo-state-success: #22c55e;
+  --sileo-state-error: #ef4444;
+  --sileo-state-loading: rgba(148, 163, 184, 0.6);
+}
