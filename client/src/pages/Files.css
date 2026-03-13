@@ -243,9 +243,11 @@
 
 .viewer-body {
   background: rgba(0, 0, 0, 0.4);
-  display: grid;
-  place-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
   padding: 0.5rem;
+  overflow: auto;
 }
 
 .viewer-image {

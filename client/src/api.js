@@ -115,6 +115,17 @@ export async function fetchFileBlob(id) {
   return { blob, contentType };
 }
 
+export async function renameFile(id, name) {
+  const res = await fetch(`${API}/files/${id}/rename`, {
+    method: 'PUT',
+    headers: headers(),
+    body: JSON.stringify({ name }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to rename file');
+  return data;
+}
+
 export async function deleteFile(id) {
   const res = await fetch(`${API}/files/${id}`, { method: 'DELETE', headers: headers() });
   const data = await res.json().catch(() => ({}));

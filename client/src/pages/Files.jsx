@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { sileo } from 'sileo'
-import { getFiles, getFile, uploadFile, fetchFileBlob, deleteFile } from '../api'
+import { getFiles, getFile, uploadFile, fetchFileBlob, deleteFile, renameFile } from '../api'
 import { useAuth } from '../context/AuthContext'
 import './Files.css'
 
@@ -37,6 +37,7 @@ export default function Files() {
   const [viewer, setViewer] = useState(null) // { id, name, type, url }
   const [deleteModal, setDeleteModal] = useState(null) // { id, name }
   const [deleting, setDeleting] = useState(false)
+  const [renamingId, setRenamingId] = useState(null)
   const isStaffOrAdmin = user?.role === 'admin' || user?.role === 'staff'
   const [includeOthers, setIncludeOthers] = useState(false)
   const [showAll, setShowAll] = useState(false)
@@ -72,9 +73,16 @@ export default function Files() {
       const file = await getFile(id)
       setSelectedFile(file)
     } catch (e) {
+      const msg = e.message || ''
+      const isAccess = msg.toLowerCase().includes('access denied')
+      const isMissing = msg.toLowerCase().includes('file not found') || msg.toLowerCase().includes('no uploaded content') || msg.toLowerCase().includes('file missing on disk')
       sileo.error({
-        title: 'Access denied',
-        description: e.message || 'You are not the owner of this file.',
+        title: isAccess ? 'Access denied' : isMissing ? 'File unavailable' : 'Unable to open file',
+        description: msg || (isAccess
+          ? 'You are not the owner of this file.'
+          : isMissing
+          ? 'This file record exists but the stored content is missing.'
+          : 'Something went wrong opening this file.'),
       })
     }
   }
@@ -133,9 +141,16 @@ export default function Files() {
         url,
       })
     } catch (e) {
+      const msg = e.message || ''
+      const isAccess = msg.toLowerCase().includes('access denied')
+      const isMissing = msg.toLowerCase().includes('no uploaded content') || msg.toLowerCase().includes('file missing on disk')
       sileo.error({
-        title: 'Access denied',
-        description: e.message || 'You are not the owner of this file.',
+        title: isAccess ? 'Access denied' : isMissing ? 'File content missing' : 'Preview failed',
+        description: msg || (isAccess
+          ? 'You are not the owner of this file.'
+          : isMissing
+          ? 'This file record has no stored content on the server.'
+          : 'Unable to load preview for this file.'),
       })
     }
   }
@@ -189,6 +204,28 @@ export default function Files() {
       setDeleteModal(null)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleRename = async (fileRow) => {
+    if (!fileRow) return
+    if (renamingId && renamingId !== fileRow.id) return
+    const currentName = fileRow.original_name || fileRow.filename || `file-${fileRow.id}`
+    const next = window.prompt('Enter a new name for this file:', currentName)
+    if (next == null || next.trim() === '' || next.trim() === currentName) return
+    setRenamingId(fileRow.id)
+    try {
+      await sileo.promise(renameFile(fileRow.id, next.trim()), {
+        loading: { title: `Renaming ${currentName}…` },
+        success: { title: 'File renamed successfully' },
+        error: (err) => ({
+          title: 'Rename failed',
+          description: err?.message || 'Failed to rename file',
+        }),
+      })
+      await loadFiles()
+    } finally {
+      setRenamingId(null)
     }
   }
 
@@ -312,6 +349,14 @@ export default function Files() {
                           onClick={() => openViewer(f)}
                         >
                           Preview
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleRename(f)}
+                          disabled={renamingId === f.id}
+                        >
+                          {renamingId === f.id ? 'Renaming…' : 'Rename'}
                         </button>
                         <button
                           type="button"

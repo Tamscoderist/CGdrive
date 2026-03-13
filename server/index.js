@@ -347,6 +347,28 @@ app.get('/api/files/:id/download', authMiddleware, async (req, res) => {
   fs.createReadStream(resolved).pipe(res);
 });
 
+// Rename file (owner only, update display name)
+app.put('/api/files/:id/rename', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body || {};
+
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+  if (!trimmed) {
+    return res.status(400).json({ error: 'New name is required' });
+  }
+
+  const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(id);
+  if (!file) return res.status(404).json({ error: 'File not found' });
+  if (file.owner_id !== req.user.id) {
+    return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
+  }
+
+  const safeName = safeBaseName(trimmed);
+  await db.prepare('UPDATE files SET original_name = ? WHERE id = ?').run(safeName, id);
+  const updated = await db.prepare('SELECT * FROM files WHERE id = ?').get(id);
+  res.json({ message: 'Renamed', file: updated });
+});
+
 // Delete file (owner only)
 app.delete('/api/files/:id', authMiddleware, async (req, res) => {
   const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
