@@ -72,17 +72,17 @@ function generateOTP() {
   return crypto.randomInt(100000, 999999).toString();
 }
 
-function setOTP(userId) {
+async function setOTP(userId) {
   const otp = generateOTP();
   const expires = Date.now() + 5 * 60 * 1000;
-  db.prepare('UPDATE users SET otp = ?, otp_expires = ? WHERE id = ?').run(otp, expires, userId);
+  await db.prepare('UPDATE users SET otp = ?, otp_expires = ? WHERE id = ?').run(otp, expires, userId);
   return otp;
 }
 
-function verifyOTP(userId, code) {
-  const row = db.prepare('SELECT otp, otp_expires FROM users WHERE id = ?').get(userId);
+async function verifyOTP(userId, code) {
+  const row = await db.prepare('SELECT otp, otp_expires FROM users WHERE id = ?').get(userId);
   if (!row || row.otp !== code || row.otp_expires < Date.now()) return false;
-  db.prepare('UPDATE users SET otp = NULL, otp_expires = NULL WHERE id = ?').run(userId);
+  await db.prepare('UPDATE users SET otp = NULL, otp_expires = NULL WHERE id = ?').run(userId);
   return true;
 }
 
@@ -101,7 +101,7 @@ function authMiddleware(req, res, next) {
 // ----- Auth routes -----
 
 // Register (no role - admin assigns later; default role: user)
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
   const body = req.body || {};
   const username = typeof body.username === 'string' ? body.username.trim() : '';
   const email = typeof body.email === 'string' ? body.email.trim() : '';
@@ -125,18 +125,18 @@ app.post('/api/register', (req, res) => {
   }
   const hash = bcrypt.hashSync(password, 10);
   try {
-    const ins = db.prepare('INSERT INTO users (username, email, password) VALUES (?, ?, ?)').run(
+    const ins = await db.prepare('INSERT INTO users (username, email, password) VALUES (?, ?, ?)').run(
       username,
       email,
       hash
     );
-    db.prepare('INSERT OR REPLACE INTO user_roles (user_id, role) VALUES (?, ?)').run(ins.lastInsertRowid, 'user');
+    await db.prepare('INSERT INTO user_roles (user_id, role) VALUES (?, ?) ON CONFLICT (user_id) DO UPDATE SET role = excluded.role').run(ins.lastInsertRowid, 'user');
     res.status(201).json({ message: 'Registered successfully' });
   } catch (e) {
-    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      const existingUser = db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
+    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE' || e.code === '23505') {
+      const existingUser = await db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
       if (existingUser) return res.status(400).json({ error: 'Username already exists' });
-      const existingEmail = db.prepare('SELECT 1 FROM users WHERE email = ?').get(email);
+      const existingEmail = await db.prepare('SELECT 1 FROM users WHERE email = ?').get(email);
       if (existingEmail) return res.status(400).json({ error: 'Email already exists' });
       return res.status(400).json({ error: 'User already exists' });
     }
@@ -145,12 +145,12 @@ app.post('/api/register', (req, res) => {
 });
 
 // Login (password-based) -> returns userId and triggers OTP
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required' });
   }
-  const user = db.prepare(`
+  const user = await db.prepare(`
     SELECT u.id, u.username, u.password, r.role
     FROM users u
     JOIN user_roles r ON r.user_id = u.id
@@ -159,7 +159,7 @@ app.post('/api/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.status(401).json({ error: 'Invalid username or password' });
   }
-  const otp = setOTP(user.id);
+  const otp = await setOTP(user.id);
   res.json({
     message: 'Password valid. Enter OTP to continue.',
     userId: user.id,
@@ -170,15 +170,15 @@ app.post('/api/login', (req, res) => {
 });
 
 // OTP verification -> returns JWT
-app.post('/api/verify-otp', (req, res) => {
+app.post('/api/verify-otp', async (req, res) => {
   const { userId, otp } = req.body;
   if (!userId || !otp) {
     return res.status(400).json({ error: 'UserId and OTP are required' });
   }
-  if (!verifyOTP(userId, String(otp).trim())) {
+  if (!(await verifyOTP(userId, String(otp).trim()))) {
     return res.status(401).json({ error: 'Invalid or expired OTP' });
   }
-  const user = db.prepare(`
+  const user = await db.prepare(`
     SELECT u.id, u.username, r.role
     FROM users u
     JOIN user_roles r ON r.user_id = u.id
@@ -204,8 +204,8 @@ function adminOnly(req, res, next) {
 }
 
 // ----- Admin: User management (assign roles) -----
-app.get('/api/users', authMiddleware, adminOnly, (req, res) => {
-  const rows = db.prepare(`
+app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
+  const rows = await db.prepare(`
     SELECT u.id, u.username, u.email, r.role
     FROM users u
     JOIN user_roles r ON r.user_id = u.id
@@ -214,13 +214,13 @@ app.get('/api/users', authMiddleware, adminOnly, (req, res) => {
   res.json(rows);
 });
 
-app.put('/api/users/:id/role', authMiddleware, adminOnly, (req, res) => {
+app.put('/api/users/:id/role', authMiddleware, adminOnly, async (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
   if (!role || !['staff', 'user'].includes(role.toLowerCase())) {
     return res.status(400).json({ error: 'Role must be staff or user' });
   }
-  const target = db.prepare(`
+  const target = await db.prepare(`
     SELECT u.id, r.role
     FROM users u
     JOIN user_roles r ON r.user_id = u.id
@@ -228,25 +228,25 @@ app.put('/api/users/:id/role', authMiddleware, adminOnly, (req, res) => {
   `).get(id);
   if (!target) return res.status(404).json({ error: 'User not found' });
   if (target.role === 'admin') return res.status(403).json({ error: 'Cannot change admin role' });
-  db.prepare('UPDATE user_roles SET role = ? WHERE user_id = ?').run(role.toLowerCase(), id);
+  await db.prepare('UPDATE user_roles SET role = ? WHERE user_id = ?').run(role.toLowerCase(), id);
   res.json({ message: 'Role updated' });
 });
 
 // ----- Files (DAC) -----
 
 // List files (all for admin/staff for listing; actual content access is DAC)
-app.get('/api/files', authMiddleware, (req, res) => {
+app.get('/api/files', authMiddleware, async (req, res) => {
   const { role, id } = req.user;
   let rows;
   if (role === 'admin' || role === 'staff') {
-    rows = db.prepare(`
+    rows = await db.prepare(`
       SELECT f.id, f.filename, f.original_name, f.mime_type, f.size, f.created_at, f.owner_id, u.username as owner_name
       FROM files f
       JOIN users u ON u.id = f.owner_id
       ORDER BY f.id DESC
     `).all();
   } else {
-    rows = db.prepare(`
+    rows = await db.prepare(`
       SELECT f.id, f.filename, f.original_name, f.mime_type, f.size, f.created_at, f.owner_id, u.username as owner_name
       FROM files f
       JOIN users u ON u.id = f.owner_id
@@ -259,7 +259,7 @@ app.get('/api/files', authMiddleware, (req, res) => {
 
 // Upload file (real upload) - owner = current user
 app.post('/api/files/upload', authMiddleware, (req, res) => {
-  upload.single('file')(req, res, (err) => {
+  upload.single('file')(req, res, async (err) => {
     if (err) {
       return res.status(400).json({ error: err.message || 'Upload failed' });
     }
@@ -267,7 +267,7 @@ app.post('/api/files/upload', authMiddleware, (req, res) => {
 
     const relPath = path.relative(UPLOADS_ROOT, req.file.path).replaceAll('\\', '/');
     const now = Date.now();
-    const ins = db.prepare(`
+    const ins = await db.prepare(`
       INSERT INTO files (filename, original_name, stored_path, mime_type, size, created_at, owner_id)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -295,8 +295,8 @@ app.post('/api/files/upload', authMiddleware, (req, res) => {
 });
 
 // Get file metadata (DAC: only owner can access; admin can access)
-app.get('/api/files/:id', authMiddleware, (req, res) => {
-  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+app.get('/api/files/:id', authMiddleware, async (req, res) => {
+  const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ error: 'File not found' });
   if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
@@ -305,8 +305,8 @@ app.get('/api/files/:id', authMiddleware, (req, res) => {
 });
 
 // Download/view file binary (DAC)
-app.get('/api/files/:id/download', authMiddleware, (req, res) => {
-  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+app.get('/api/files/:id/download', authMiddleware, async (req, res) => {
+  const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ error: 'File not found' });
   if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
@@ -332,8 +332,8 @@ app.get('/api/files/:id/download', authMiddleware, (req, res) => {
 });
 
 // Delete file (DAC: owner/admin only). Deletes DB row and disk content if present.
-app.delete('/api/files/:id', authMiddleware, (req, res) => {
-  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+app.delete('/api/files/:id', authMiddleware, async (req, res) => {
+  const file = await db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!file) return res.status(404).json({ error: 'File not found' });
   if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Access denied. You are not the owner of this file.' });
@@ -350,17 +350,17 @@ app.delete('/api/files/:id', authMiddleware, (req, res) => {
     }
   }
 
-  db.prepare('DELETE FROM files WHERE id = ?').run(req.params.id);
+  await db.prepare('DELETE FROM files WHERE id = ?').run(req.params.id);
   res.json({ message: 'Deleted' });
 });
 
 // Seed sample files for demo (if empty)
-const fileCount = db.prepare('SELECT COUNT(*) as c FROM files').get();
+const fileCount = await db.prepare('SELECT COUNT(*) as c FROM files').get();
 if (fileCount.c === 0) {
-  const admin = db.prepare("SELECT id FROM users WHERE username = 'admin123'").get();
+  const admin = await db.prepare("SELECT id FROM users WHERE username = 'admin123'").get();
   if (admin) {
-    db.prepare('INSERT INTO files (filename, created_at, owner_id) VALUES (?, ?, ?)').run('admin-document.txt', Date.now(), admin.id);
-    db.prepare('INSERT INTO files (filename, created_at, owner_id) VALUES (?, ?, ?)').run('secret-report.pdf', Date.now(), admin.id);
+    await db.prepare('INSERT INTO files (filename, created_at, owner_id) VALUES (?, ?, ?)').run('admin-document.txt', Date.now(), admin.id);
+    await db.prepare('INSERT INTO files (filename, created_at, owner_id) VALUES (?, ?, ?)').run('secret-report.pdf', Date.now(), admin.id);
   }
   console.log('Seeded sample files');
 }

@@ -6,7 +6,7 @@ Web application with **Authentication** (password + MFA/OTP) and **Authorization
 
 - **Frontend:** React.js + Vite
 - **Backend:** Node.js + Express
-- **Database:** SQLite
+- **Database:** SQLite (local) / PostgreSQL via Supabase (production)
 
 ## Features
 
@@ -61,6 +61,28 @@ Web application with **Authentication** (password + MFA/OTP) and **Authorization
 - **files:** id, filename, owner_id  
 
 SQLite file: `server/database.sqlite` (created on first run).
+
+## Production deployment (Vercel + Render + Supabase)
+
+- **Frontend:** Vercel (e.g. https://c-gdrive.vercel.app/)
+- **Backend:** Render (Web Service)
+- **Database:** Supabase (PostgreSQL)
+
+### Render backend setup
+
+1. Deploy the `server` folder as a Web Service on Render.
+2. Set environment variables:
+   - `DATABASE_URL` – Supabase connection string, e.g.  
+     `postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres`  
+     (from Supabase: Project Settings → Database → Connection string → URI)
+   - `JWT_SECRET` – strong secret for JWT signing
+
+3. Run the Supabase migration first:  
+   In Supabase SQL Editor, run `supabase/sqlite_tables.sql`.
+
+### Vercel frontend setup
+
+Set `VITE_API_URL` to your Render backend URL, e.g. `https://cgdrive.onrender.com/api`.
 
 ## Deliverables
 
