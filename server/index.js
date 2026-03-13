@@ -16,6 +16,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'ias102-secret-key-change-in-produc
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
+// Render health check (and quick sanity endpoint)
+app.get('/', (req, res) => {
+  res.status(200).send('OK');
+});
+
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_ROOT = path.join(__dirname, 'uploads');
 fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
