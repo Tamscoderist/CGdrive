@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getFiles, getFile, uploadFile, fetchFileBlob, deleteFile } from '../api'
 import { useAuth } from '../context/AuthContext'
 import './Files.css'
@@ -21,6 +21,7 @@ export default function Files() {
   const [selectedFile, setSelectedFile] = useState(null)
   const [selectedUpload, setSelectedUpload] = useState(null)
   const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
   const [viewer, setViewer] = useState(null) // { id, name, type, url }
   const [deleteModal, setDeleteModal] = useState(null) // { id, name }
   const [deleting, setDeleting] = useState(false)
@@ -60,26 +61,27 @@ export default function Files() {
     }
   }
 
-  const handleUpload = async (e) => {
-    e.preventDefault()
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
     setError('')
     setAccessDenied(null)
-    if (!selectedUpload) {
-      setError('Please choose a file (image or PDF).')
-      return
-    }
+    setSelectedUpload(file)
     setUploading(true)
     try {
-      await uploadFile(selectedUpload)
+      await uploadFile(file)
       setSelectedUpload(null)
-      // reset input element
-      e.target.reset?.()
+      if (fileInputRef.current) fileInputRef.current.value = ''
       loadFiles()
     } catch (err) {
       setError(err.message || 'Upload failed')
     } finally {
       setUploading(false)
     }
+  }
+
+  const triggerFilePicker = () => {
+    fileInputRef.current?.click()
   }
 
   const openViewer = async (fileRow) => {
@@ -155,22 +157,30 @@ export default function Files() {
         Discretionary Access Control: only the owner can access a file. Non-owners get &quot;Access denied&quot;.
       </p>
 
-      <form className="upload-form" onSubmit={handleUpload}>
-        <label className="upload-picker">
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            onChange={(e) => setSelectedUpload(e.target.files?.[0] || null)}
-          />
-          <span className="btn btn-secondary">
-            <span className="upload-icon">↑</span>
-            <span>Select file</span>
-          </span>
-        </label>
-        <button type="submit" className="btn btn-primary" disabled={uploading}>
-          {uploading ? 'Uploading…' : 'Upload file'}
+      <div className="upload-form">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          onChange={handleFileSelect}
+          className="upload-input-hidden"
+          disabled={uploading}
+        />
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={triggerFilePicker}
+          disabled={uploading}
+        >
+          <span className="upload-icon">↑</span>
+          {uploading ? `Uploading ${selectedUpload?.name || '…'}…` : 'Upload file'}
         </button>
-      </form>
+        {selectedUpload && (
+          <span className="upload-preview">
+            {uploading ? `Uploading: ${selectedUpload.name}` : `Selected: ${selectedUpload.name}`}
+          </span>
+        )}
+      </div>
 
       {error && <div className="error">{error}</div>}
       {accessDenied && (

@@ -8,6 +8,7 @@ import VerifyOTP from './pages/VerifyOTP'
 import Files from './pages/Files'
 import AdminUsers from './pages/AdminUsers'
 import StaffTools from './pages/StaffTools'
+import IndexPage from './pages/IndexPage'
 
 function App() {
   const { user, loading } = useAuth()
@@ -39,7 +40,7 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Files />} />
+        <Route index element={<IndexPage />} />
         <Route path="files" element={<Files />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="staff-tools" element={<StaffTools />} />

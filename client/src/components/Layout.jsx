@@ -21,12 +21,29 @@ export default function Layout() {
             <h2 className="logo">CGdrive</h2>
           </NavLink>
           <nav className="nav">
-            <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
-              My Drive
-            </NavLink>
+            {user?.role === 'admin' && (
+              <>
+                <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
+                  Dashboard
+                </NavLink>
+                <NavLink to="/files" className={({ isActive }) => isActive ? 'active' : ''}>
+                  My Drive
+                </NavLink>
+              </>
+            )}
             {user?.role === 'staff' && (
-              <NavLink to="/staff-tools" className={({ isActive }) => isActive ? 'active' : ''}>
-                Staff Tools
+              <>
+                <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
+                  Staff Tools
+                </NavLink>
+                <NavLink to="/files" className={({ isActive }) => isActive ? 'active' : ''}>
+                  My Drive
+                </NavLink>
+              </>
+            )}
+            {user?.role === 'user' && (
+              <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
+                My Drive
               </NavLink>
             )}
             {user?.role === 'admin' && (

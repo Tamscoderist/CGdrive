@@ -34,14 +34,13 @@ export default function StaffTools() {
 
   const stats = useMemo(() => {
     const total = files.length
-    const totalBytes = files.reduce((acc, f) => acc + (typeof f.size === 'number' ? f.size : 0), 0)
     const byType = files.reduce((acc, f) => {
       const t = f.mime_type || 'unknown'
       acc[t] = (acc[t] || 0) + 1
       return acc
     }, {})
     const owners = new Set(files.map((f) => f.owner_name || String(f.owner_id)))
-    return { total, totalBytes, byTypeCount: Object.keys(byType).length, owners: owners.size }
+    return { total, byTypeCount: Object.keys(byType).length, owners: owners.size }
   }, [files])
 
   const filtered = useMemo(() => {
@@ -66,10 +65,6 @@ export default function StaffTools() {
         <div className="card">
           <div className="label">Total files</div>
           <div className="value">{stats.total}</div>
-        </div>
-        <div className="card">
-          <div className="label">Total storage</div>
-          <div className="value">{formatSize(stats.totalBytes)}</div>
         </div>
         <div className="card">
           <div className="label">Unique owners</div>

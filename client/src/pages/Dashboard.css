@@ -2,6 +2,15 @@
   padding: 0.5rem 0;
 }
 
+.dashboard .error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
 .dashboard h1 {
   font-size: 1.75rem;
   margin-bottom: 0.5rem;

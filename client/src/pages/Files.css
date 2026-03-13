@@ -11,20 +11,17 @@
 
 .upload-form {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.upload-picker {
-  display: inline-flex;
   align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 
-.upload-picker input[type="file"] {
+.upload-input-hidden {
   display: none;
 }
 
-.upload-picker .btn {
+.upload-form .btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -32,6 +29,15 @@
 
 .upload-icon {
   font-size: 0.95rem;
+}
+
+.upload-preview {
+  color: var(--muted);
+  font-size: 0.9rem;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .files-list {
