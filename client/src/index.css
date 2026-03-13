@@ -1,6 +1,6 @@
 :root {
-  /* Font: SF Pro on Apple, system fallbacks elsewhere */
-  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  /* Font: Inter (SF Pro–like), SF Pro on Apple, system fallbacks */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
 
   /* Dark theme - less dim */
   --bg: #0f1729;
