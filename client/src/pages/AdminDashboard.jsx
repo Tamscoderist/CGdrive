@@ -14,7 +14,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     setLoading(true)
     setError('')
-    Promise.all([getFiles(), getUsers()])
+    Promise.all([getFiles('all'), getUsers()])
       .then(([filesData, usersData]) => {
         setFiles(filesData)
         setUsers(usersData)

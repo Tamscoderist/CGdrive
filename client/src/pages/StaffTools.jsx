@@ -13,6 +13,18 @@ function formatSize(bytes) {
   return `${mb.toFixed(1)} MB`
 }
 
+function formatMimeType(mime) {
+  if (!mime) return '—'
+  const map = {
+    'application/pdf': 'PDF',
+    'application/msword': 'Word (.doc)',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word (.docx)',
+  }
+  if (map[mime]) return map[mime]
+  if (mime.startsWith('image/')) return mime.replace('image/', '').toUpperCase()
+  return mime.length > 20 ? mime.slice(0, 17) + '…' : mime
+}
+
 export default function StaffTools() {
   const { user } = useAuth()
   const [files, setFiles] = useState([])
@@ -101,10 +113,16 @@ export default function StaffTools() {
             <tbody>
               {filtered.map((f) => (
                 <tr key={f.id}>
-                  <td>{f.original_name || f.filename}</td>
-                  <td>{f.mime_type || '—'}</td>
+                  <td className="file-cell-name" title={f.original_name || f.filename}>
+                    {f.original_name || f.filename}
+                  </td>
+                  <td className="file-cell-type" title={f.mime_type || ''}>
+                    {formatMimeType(f.mime_type)}
+                  </td>
                   <td>{formatSize(f.size)}</td>
-                  <td>{f.owner_name || f.owner_id}</td>
+                  <td className="file-cell-owner" title={f.owner_name || f.owner_id}>
+                    {f.owner_name || f.owner_id}
+                  </td>
                 </tr>
               ))}
             </tbody>
