@@ -30,7 +30,6 @@ export default function Files() {
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [accessDenied, setAccessDenied] = useState(null)
   const [selectedFile, setSelectedFile] = useState(null)
   const [selectedUpload, setSelectedUpload] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -68,13 +67,15 @@ export default function Files() {
   }, [])
 
   const handleViewFile = async (id) => {
-    setAccessDenied(null)
     setSelectedFile(null)
     try {
       const file = await getFile(id)
       setSelectedFile(file)
     } catch (e) {
-      setAccessDenied(e.message || 'Access denied. You are not the owner of this file.')
+      sileo.error({
+        title: 'Access denied',
+        description: e.message || 'You are not the owner of this file.',
+      })
     }
   }
 
@@ -82,7 +83,6 @@ export default function Files() {
     const file = e.target.files?.[0]
     if (!file) return
     setError('')
-    setAccessDenied(null)
     setSelectedUpload(file)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -122,7 +122,6 @@ export default function Files() {
 
   const openViewer = async (fileRow) => {
     try {
-      setAccessDenied(null)
       if (viewer?.url) URL.revokeObjectURL(viewer.url)
 
       const { blob, contentType } = await fetchFileBlob(fileRow.id)
@@ -134,7 +133,10 @@ export default function Files() {
         url,
       })
     } catch (e) {
-      setAccessDenied(e.message || 'Access denied.')
+      sileo.error({
+        title: 'Access denied',
+        description: e.message || 'You are not the owner of this file.',
+      })
     }
   }
 
@@ -155,7 +157,6 @@ export default function Files() {
 
   const openDeleteModal = (fileRow) => {
     setError('')
-    setAccessDenied(null)
     setDeleteModal({
       id: fileRow.id,
       name: fileRow.original_name || fileRow.filename || `file-${fileRow.id}`,
@@ -171,7 +172,6 @@ export default function Files() {
     if (!deleteModal || deleting) return
     setDeleting(true)
     setError('')
-    setAccessDenied(null)
     const fileName = deleteModal.name
     try {
       await sileo.promise(deleteFile(deleteModal.id), {
@@ -186,7 +186,7 @@ export default function Files() {
       setDeleteModal(null)
       loadFiles()
     } catch (e) {
-      setAccessDenied(e.message || 'Access denied.')
+      setDeleteModal(null)
     } finally {
       setDeleting(false)
     }
@@ -266,11 +266,6 @@ export default function Files() {
       )}
 
       {error && <div className="error">{error}</div>}
-      {accessDenied && (
-        <div className="access-denied">
-          Access denied. You are not the owner of this file.
-        </div>
-      )}
 
       {loading ? (
         <p className="muted">Loading files…</p>

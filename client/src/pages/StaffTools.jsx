@@ -26,7 +26,7 @@ export default function StaffTools() {
   useEffect(() => {
     setLoading(true)
     setError('')
-    getFiles()
+    getFiles('all')
       .then((data) => setFiles(data))
       .catch((e) => setError(e.message || 'Failed to load files'))
       .finally(() => setLoading(false))

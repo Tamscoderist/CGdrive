@@ -163,14 +163,6 @@
   }
 }
 
-.access-denied {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--danger);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-}
-
 .file-detail {
   margin-top: 1.5rem;
   padding: 1.25rem;
