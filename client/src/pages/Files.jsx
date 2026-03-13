@@ -160,8 +160,16 @@ export default function Files() {
     setDeleting(true)
     setError('')
     setAccessDenied(null)
+    const fileName = deleteModal.name
     try {
-      await deleteFile(deleteModal.id)
+      await sileo.promise(deleteFile(deleteModal.id), {
+        loading: { title: `Deleting ${fileName}…` },
+        success: { title: 'File deleted successfully' },
+        error: (err) => ({
+          title: 'Delete failed',
+          description: err?.message || 'Failed to delete file',
+        }),
+      })
       if (viewer?.id === deleteModal.id) closeViewer()
       setDeleteModal(null)
       loadFiles()
@@ -364,7 +372,7 @@ export default function Files() {
               <div>
                 <div id="delete-title" className="confirm-title">Delete file?</div>
                 <div className="confirm-subtitle">
-                  This will permanently remove <strong>{deleteModal.name}</strong>.
+                  You are about to delete <strong>{deleteModal.name}</strong>. This will permanently remove the file.
                 </div>
               </div>
             </div>
